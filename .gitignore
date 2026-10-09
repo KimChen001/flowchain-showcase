@@ -1,0 +1,12 @@
+# The showcase holds documentation and selected demo assets only.
+.env
+.env.*
+*.pem
+*.key
+*.p12
+*.pfx
+node_modules/
+.local/
+data/
+raw/
+derived/
