@@ -1,36 +1,59 @@
 # FlowChain demonstration
 
-This outline presents the purchasing workflow in approximately three minutes. Use a demo workspace with fictional suppliers and orders.
+A five-minute walkthrough of the desktop workspace, conversation assistant, purchasing decisions, and beta mobile operations. The screenshots below come from the running application with fictional business records.
 
-## 1 Replenishment decision
+## 1 Desktop workspace — 30 seconds
 
-Open the reorder list and select an item with sufficient shipment history, a recorded reorder point, and a preferred supplier.
+Open Today and show the work queue, overdue count, and links to recent documents. Explain how purchasing, receiving, inventory, sales, and bills share records.
 
-Explain the on-hand quantity, reservations, and incoming purchase orders. Show the 90-day demand window and the calculated order-by date. If a late incoming order is excluded, explain why it cannot cover the requirement in time.
+[Desktop overview](assets/01-workspace-overview.jpg)
 
-Open the prefilled purchase request. Show the supplier, quantity, and any minimum-order adjustment. Stop before submission to demonstrate the review step.
+## 2 AI conversation and draft — 90 seconds
 
-## 2 Supplier follow-up
+Ask: **“Which purchase orders are overdue?”**
 
-Ask the assistant which issued purchase orders are overdue. Open a cited order and verify its outstanding quantity and delivery date.
+The captured walkthrough returns eight overdue orders. Show the most overdue order, its supplier, promised date, and next-step suggestion. Open a cited record to inspect the evidence. The assistant also supports contextual follow-ups from previously cited records; this capability is not separately pictured here.
 
-Prepare a follow-up draft for the relevant supplier. Show the records used to compose it and explain that the user checks and sends the message.
+Choose **Review draft** for LOCAL-DEMO-PO-020. Show the supplier contact, order number, 7,000 pcs remaining, promised date, and editable message. Explain that preparing a draft does not send an email or change the PO.
 
-When discussing supplier performance, show the on-time, in-full, and OTIF scorecard and explain why the original promised date is retained.
+[Assistant answer](assets/02-ai-assistant-overdue-orders.jpg) · [Follow-up draft](assets/03-ai-supplier-follow-up-draft.jpg)
 
-## 3 Receiving and invoice matching
+These captures use deterministic business services without an external language model. Optional model planning, checked answer wording, and semantic knowledge search are described in the README, not demonstrated by these screenshots.
 
-Open a purchase order, its receipt, and the related supplier bill. Explain the three-way match and any price or quantity exception.
+## 3 Purchasing, stock, and supplier performance — 90 seconds
 
-Close with the business purpose: FlowChain connects stock requirements, supplier commitments, and procurement actions, while keeping the evidence and the final decision visible to the user.
+Show the RFQ line comparison: the suppliers offer different unit prices and delivery dates. Explain the commercial trade-off and historical PO price context. Formal award requires a separate reviewed decision.
 
-## Screenshots to capture
+Open inventory balances and explain on-hand, reserved, available, safety stock, and reorder points. The current walkthrough has no qualifying reorder rows, so it does not demonstrate a replenishment recommendation. For a live reorder demonstration, first use a fictional scenario with a shortage or sufficient shipment history, then show incoming-order coverage and the prefilled request.
 
-| Screenshot | What it demonstrates |
+Show the supplier scorecard. Explain the difference between performance against the original date and against the revised date, then inspect the underlying deliveries.
+
+[Quotation comparison](assets/06-rfq-quotation-comparison.jpg) · [Inventory balances](assets/04-inventory-balances.jpg) · [Supplier performance](assets/05-supplier-performance.jpg)
+
+## 4 Mobile operations — 60 seconds
+
+State the status first: **implemented beta responsive web module, explicitly enabled for this demo and outside the current core trial scope**.
+
+Show the task inbox and open a pending purchase order. Review its supplier, amount, lines, and available decision controls. Stop before approving, rejecting, or returning it.
+
+Open Mobile receiving, search LOCAL-DEMO-PO-020, and show the warehouse, location, outstanding quantity, accepted quantity, and Prepare draft control. Stop before creating or posting a receipt.
+
+[Task inbox](assets/07-mobile-task-inbox-beta.jpg) · [PO review](assets/08-mobile-po-review-beta.jpg) · [Receiving preparation](assets/09-mobile-receiving-beta.jpg)
+
+The images demonstrate mobile web layouts. They do not imply a native app, production rollout, offline readiness, or completed approval/receiving transactions.
+
+## Screenshot index
+
+| Screenshot | What is actually shown |
 | --- | --- |
-| Reorder list | Stock position, demand history, order-by date, and supplier terms |
-| Assistant answer and cited order | A supplier issue tied to its supporting record |
-| Prefilled purchase request | A suggested next step that still requires review |
-| Supplier scorecard or invoice match | Delivery performance or purchasing control |
+| [01 Desktop workspace](assets/01-workspace-overview.jpg) | Work queue, overdue orders, and document activity |
+| [02 AI assistant](assets/02-ai-assistant-overdue-orders.jpg) | Data-backed overdue-order answer and next-step suggestions |
+| [03 Supplier follow-up](assets/03-ai-supplier-follow-up-draft.jpg) | Editable message with outstanding quantity and promised date |
+| [04 Inventory](assets/04-inventory-balances.jpg) | Posted stock, availability, warehouses, and thresholds |
+| [05 Supplier performance](assets/05-supplier-performance.jpg) | Original/revised-date performance, in-full, OTIF, and delays |
+| [06 RFQ comparison](assets/06-rfq-quotation-comparison.jpg) | Recorded quotes, delivery dates, historical prices, and commercial terms |
+| [07 Mobile task inbox](assets/07-mobile-task-inbox-beta.jpg) | Pending purchasing tasks in the beta web module |
+| [08 Mobile PO review](assets/08-mobile-po-review-beta.jpg) | Order information and decision controls, without executing a decision |
+| [09 Mobile receiving](assets/09-mobile-receiving-beta.jpg) | Quantity review and receipt-draft preparation controls |
 
-Include only fictional business data. Keep login links, session identifiers, credentials, and personal information outside the recording.
+All business names, contacts, and transactions in the images are fictional walkthrough data. Capture date: October 8, 2026. Source snapshot: `33542e12`.
