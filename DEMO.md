@@ -18,7 +18,7 @@ Choose **Review draft** for LOCAL-DEMO-PO-020. Show the supplier contact, order 
 
 [Assistant answer](assets/02-ai-assistant-overdue-orders.jpg) · [Follow-up draft](assets/03-ai-supplier-follow-up-draft.jpg)
 
-These captures use deterministic business services without an external language model. Optional model planning, checked answer wording, and semantic knowledge search are described in the README, not demonstrated by these screenshots.
+These captures use the default rule-based assistant, without a language model. The optional model-first agent and semantic knowledge search are described in the [README](README.md#agent-design-and-evaluation), not demonstrated by these screenshots.
 
 ## 3 Purchasing, stock, and supplier performance — 90 seconds
 
