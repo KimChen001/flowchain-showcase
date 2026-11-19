@@ -30,6 +30,18 @@ Approvals follow segregation of duties: the person who submitted a request or or
 
 *332 supplier invoices checked against their orders and receipts: 331 matched, 1 held by a price difference above the tolerance.*
 
+### Dashboards
+
+Six dashboards (business overview, procurement, sales, inventory, supplier invoices, suppliers) plus a report library and builder. Every figure opens the exact records it counts, the date range and filters apply to every figure on the page, each figure has a written definition, and views can be saved and exported. *Key findings* are written from the figures on the page, not by a model, and a notice says when a figure rests on incomplete records.
+
+![Business overview dashboard](assets/07-business-overview.jpg)
+
+*Business overview: committed purchasing, sales, stock below safety level (and how much of it open orders already cover), supplier invoices, and what needs attention.*
+
+![Procurement analytics dashboard](assets/08-procurement-analytics.jpg)
+
+*Procurement analytics: committed spend by month, the purchase order lifecycle from commitment to matched invoice, spend concentration by supplier (ABC), and ordered against received and invoiced value.*
+
 ## How the agent works
 
 The assistant opens on every page and answers questions about the whole workspace in English or Chinese.
@@ -119,7 +131,7 @@ I designed and built FlowChain on my own from June 2026, drawing on procurement 
 
 Stack: TypeScript, React, Node.js, PostgreSQL with Prisma and pgvector, LangChain text splitters, HiGHS (WebAssembly) for the MILP, Zod for the assistant's stream contract. The demo uses DeepSeek V4.1 Flash; the agent loop is provider-neutral.
 
-See the [demo walkthrough](DEMO.md) for a guided tour, and [Optimization and language models in operational decisions](RESEARCH.md) for the research questions behind the design.
+See the [demo walkthrough](DEMO.md) for a guided tour, and the [research notes](RESEARCH.md) for the study behind the design: a formal model that splits an AI recommendation's cost regret into misreading and miscalculating, four propositions on when to act on a supplier's message, and the planned experiment.
 
 ---
 
