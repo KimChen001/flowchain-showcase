@@ -74,107 +74,147 @@ The model has three parts: a decision problem with an exact optimum, an informat
 
 ### 4.1 Decision problem
 
-Items are $i = 1,\dots,n$. The decision is an order quantity $q_i$ for each item now, with $z_i = 1$ if item $i$ is ordered. The true state $x$ fixes each item's inventory position $I_i(x)$, unit price $c_i$, supplier minimum $q_i^{\min}$, lead time $L_i$, and demand $D_i$ over the protection interval $L_i + R$ with $R = 7$ review days. Holding cost $h_i = 0.25\,c_i (L_i + R)/365$ and shortage cost $\pi_i = 5h_i$ are labelled assumptions; $B$ is the budget for this order.
+Items are $`i = 1,\dots,n`$. The decision is an order quantity $`q_i`$ for each item now, with $`z_i = 1`$ if item $`i`$ is ordered. The true state $`x`$ fixes each item's inventory position $`I_i(x)`$, unit price $`c_i`$, supplier minimum $`q_i^{\min}`$, lead time $`L_i`$, and demand $`D_i`$ over the protection interval $`L_i + R`$ with $`R = 7`$ review days. Holding cost $`h_i = 0.25\,c_i (L_i + R)/365`$ and shortage cost $`\pi_i = 5h_i`$ are labelled assumptions; $`B`$ is the budget for this order.
 
-$$Z_x(q) = \sum_{i=1}^{n} \mathbb{E}\left[ h_i\,\big(I_i(x) + q_i - D_i\big)^+ + \pi_i\,\big(D_i - I_i(x) - q_i\big)^+ \right] \qquad (1)$$
+```math
+Z_x(q) = \sum_{i=1}^{n} \mathbb{E}\left[ h_i\,\big(I_i(x) + q_i - D_i\big)^+ + \pi_i\,\big(D_i - I_i(x) - q_i\big)^+ \right] \qquad (1)
+```
 
-$$\mathcal{Q} = \left\{ q \in \mathbb{Z}_{\ge 0}^{n} \;:\; q_i^{\min} z_i \le q_i \le M_i z_i,\; z_i \in \{0,1\},\; \sum_i c_i q_i \le B \right\} \qquad (2)$$
+```math
+\mathcal{Q} = \left\{ q \in \mathbb{Z}_{\ge 0}^{n} \;:\; q_i^{\min} z_i \le q_i \le M_i z_i,\; z_i \in \{0,1\},\; \sum_i c_i q_i \le B \right\} \qquad (2)
+```
 
-$$q^*(x) = \arg\min_{q \in \mathcal{Q}} Z_x(q) \qquad (3)$$
+```math
+q^{\ast}(x) = \arg\min_{q \in \mathcal{Q}} Z_x(q) \qquad (3)
+```
 
-(1) has no purchase term because leftover stock carries over; purchase cost enters through $h_i$ and $B$. The solver computes (3) exactly on $N = 200$ demand scenarios $D_{ik}$, built by a 7-day block bootstrap of recorded shipments:
+(1) has no purchase term because leftover stock carries over; purchase cost enters through $`h_i`$ and $`B`$. The solver computes (3) exactly on $`N = 200`$ demand scenarios $`D_{ik}`$, built by a 7-day block bootstrap of recorded shipments:
 
-$$\min_{q,z,u,v}\; \frac{1}{N}\sum_{k=1}^{N}\sum_{i=1}^{n}\left(h_i u_{ik} + \pi_i v_{ik}\right) \qquad (4)$$
+```math
+\min_{q,z,u,v}\; \frac{1}{N}\sum_{k=1}^{N}\sum_{i=1}^{n}\left(h_i u_{ik} + \pi_i v_{ik}\right) \qquad (4)
+```
 
-$$u_{ik} \ge I_i + q_i - D_{ik}, \qquad v_{ik} \ge D_{ik} - I_i - q_i, \qquad u_{ik}, v_{ik} \ge 0 \qquad (5)\text{–}(6)$$
+```math
+u_{ik} \ge I_i + q_i - D_{ik}, \qquad v_{ik} \ge D_{ik} - I_i - q_i, \qquad u_{ik}, v_{ik} \ge 0 \qquad (5)\text{–}(6)
+```
 
-$$q_i^{\min} z_i \le q_i \le M_i z_i, \qquad \sum_i c_i q_i \le B \qquad (7)\text{–}(8)$$
+```math
+q_i^{\min} z_i \le q_i \le M_i z_i, \qquad \sum_i c_i q_i \le B \qquad (7)\text{–}(8)
+```
 
-$$q_i \in \mathbb{Z}_{\ge 0}, \qquad z_i \in \{0,1\} \qquad (9)$$
+```math
+q_i \in \mathbb{Z}_{\ge 0}, \qquad z_i \in \{0,1\} \qquad (9)
+```
 
-with $M_i = \min\left(\lfloor B/c_i \rfloor,\, \max\left(\max_k D_{ik} - I_i,\; q_i^{\min}\right)\right)$: an order beyond the largest sampled demand only adds holding cost, so the bound removes no optimal order. HiGHS solves (4)–(9) to a relative gap of at most $10^{-6}$. Constraints (7)–(8) live inside the solver tool, so a language model that calls it cannot drop them.
+with $`M_i = \min\left(\lfloor B/c_i \rfloor,\, \max\left(\max_k D_{ik} - I_i,\; q_i^{\min}\right)\right)`$: an order beyond the largest sampled demand only adds holding cost, so the bound removes no optimal order. HiGHS solves (4)–(9) to a relative gap of at most $`10^{-6}`$. Constraints (7)–(8) live inside the solver tool, so a language model that calls it cannot drop them.
 
 ### 4.2 Records, messages and the state used to order
 
-An approach never sees $x$. It sees records that can lag the truth and messages that can be wrong, and it must state the state it orders on. For item $i$, with on hand $s_i$, reserved $r_i$ and open order lines $j \in J_i$ with remaining quantity $a_j$ and true due day $d_j$, the position counts only the lines that arrive within the protection interval:
+An approach never sees $`x`$. It sees records that can lag the truth and messages that can be wrong, and it must state the state it orders on. For item $`i`$, with on hand $`s_i`$, reserved $`r_i`$ and open order lines $`j \in J_i`$ with remaining quantity $`a_j`$ and true due day $`d_j`$, the position counts only the lines that arrive within the protection interval:
 
-$$I_i(x) = s_i - r_i + \sum_{j \in J_i:\; d_j \le L_i + R} a_j \qquad (10)$$
+```math
+I_i(x) = s_i - r_i + \sum_{j \in J_i:\; d_j \le L_i + R} a_j \qquad (10)
+```
 
-A delay therefore matters: it can push a line out of the window and lower $I_i$. The records $x^{\mathrm{rec}} = \rho(x)$ carry the recorded due days and lead times, which can lag. A message $m$ makes a claim $\tilde\theta_m$ about one component $\theta_m(x)$ of the state:
+A delay therefore matters: it can push a line out of the window and lower $`I_i`$. The records $`x^{\mathrm{rec}} = \rho(x)`$ carry the recorded due days and lead times, which can lag. A message $`m`$ makes a claim $`\tilde\theta_m`$ about one component $`\theta_m(x)`$ of the state:
 
-$$m = \big(\theta_m,\; \tilde\theta_m,\; \tau_m,\; \chi_m\big), \qquad \tau_m \in \{\text{true},\, \text{false},\, \text{vague}\}, \quad \chi_m \in \{\text{checkable},\, \text{not checkable}\} \qquad (11)$$
+```math
+m = \big(\theta_m,\; \tilde\theta_m,\; \tau_m,\; \chi_m\big), \qquad \tau_m \in \{\text{true},\, \text{false},\, \text{vague}\}, \quad \chi_m \in \{\text{checkable},\, \text{not checkable}\} \qquad (11)
+```
 
-A true claim equals $\theta(x)$, which the records do not show yet ("your open order will arrive two weeks late"); a false one differs ("Acme always delivers early"); a vague one contains $\theta(x)$ in a range ("the order may be delayed"). A message is checkable when the records hold evidence about it, such as the supplier's delivery history. An approach $\omega$ reads, then decides:
+A true claim equals $`\theta(x)`$, which the records do not show yet ("your open order will arrive two weeks late"); a false one differs ("Acme always delivers early"); a vague one contains $`\theta(x)`$ in a range ("the order may be delayed"). A message is checkable when the records hold evidence about it, such as the supplier's delivery history. An approach $`\omega`$ reads, then decides:
 
-$$\hat x_\omega = \mathrm{read}_\omega\big(x^{\mathrm{rec}}, M\big) \qquad (12) \qquad\qquad \hat q_\omega = g_\omega\big(\hat x_\omega\big) \qquad (13)$$
+```math
+\hat x_\omega = \mathrm{read}_\omega\big(x^{\mathrm{rec}}, M\big) \qquad (12) \qquad\qquad \hat q_\omega = g_\omega\big(\hat x_\omega\big) \qquad (13)
+```
 
-For the solver arms $g_\omega = q^*(\cdot)$. Every approach must output $\hat x_\omega$ as structured facts, each tied to a record or a message, so (12) and (13) are observable. Validation adopts a checkable claim only when the records support it; a claim that cannot be checked is adopted or not by a stated rule that is part of the arm's design.
+For the solver arms $`g_\omega = q^{\ast}(\cdot)`$. Every approach must output $`\hat x_\omega`$ as structured facts, each tied to a record or a message, so (12) and (13) are observable. Validation adopts a checkable claim only when the records support it; a claim that cannot be checked is adopted or not by a stated rule that is part of the arm's design.
 
 ### 4.3 Scoring
 
-Every score is computed under the true state $x$, with expectations estimated on 20,000 held-out demand samples, not the $N$ used to solve. Regret splits exactly at the stated state:
+Every score is computed under the true state $`x`$, with expectations estimated on 20,000 held-out demand samples, not the $`N`$ used to solve. Regret splits exactly at the stated state:
 
-$$\underbrace{Z_x(\hat q_\omega) - Z_x\big(q^*(x)\big)}_{\text{regret}} \;=\; \underbrace{Z_x\big(q^*(\hat x_\omega)\big) - Z_x\big(q^*(x)\big)}_{\text{information } \mathcal{I}_\omega} \;+\; \underbrace{Z_x(\hat q_\omega) - Z_x\big(q^*(\hat x_\omega)\big)}_{\text{computation } C_\omega} \qquad (15)$$
+```math
+\underbrace{Z_x(\hat q_\omega) - Z_x\big(q^{\ast}(x)\big)}_{\text{regret}} \;=\; \underbrace{Z_x\big(q^{\ast}(\hat x_\omega)\big) - Z_x\big(q^{\ast}(x)\big)}_{\text{information } \mathcal{I}_\omega} \;+\; \underbrace{Z_x(\hat q_\omega) - Z_x\big(q^{\ast}(\hat x_\omega)\big)}_{\text{computation } C_\omega} \qquad (15)
+```
 
 ![Figure 2: the regret split](assets/research-fig2-regret.svg)
 
-$\mathcal{I}_\omega \ge 0$ (up to sampling error), because $q^*(\hat x_\omega) \in \mathcal{Q}$ and $q^*(x)$ is the best point of $\mathcal{Q}$ under $x$. $C_\omega$ can be negative, when a computing error happens to offset a reading error, so it is the contribution of the computation deviation at true cost, not a pure measure of miscomputing; the paper also reports the computing error judged in the approach's own stated state, $C^{\mathrm{own}}_\omega = Z_{\hat x}(\hat q_\omega) - Z_{\hat x}(q^*(\hat x_\omega))$. For the solver arms $C_\omega = 0$ by construction, when the order comes from a valid solver call. Because (15) charges reading first, an order-independent (Shapley) version averaging both orders is reported beside it, using the reference arm R3 for the order an approach would place on the true state.
+$`\mathcal{I}_\omega \ge 0`$ (up to sampling error), because $`q^{\ast}(\hat x_\omega) \in \mathcal{Q}`$ and $`q^{\ast}(x)`$ is the best point of $`\mathcal{Q}`$ under $`x`$. $`C_\omega`$ can be negative, when a computing error happens to offset a reading error, so it is the contribution of the computation deviation at true cost, not a pure measure of miscomputing; the paper also reports the computing error judged in the approach's own stated state, $`C^{\mathrm{own}}_\omega = Z_{\hat x}(\hat q_\omega) - Z_{\hat x}(q^{\ast}(\hat x_\omega))`$. For the solver arms $`C_\omega = 0`$ by construction, when the order comes from a valid solver call. Because (15) charges reading first, an order-independent (Shapley) version averaging both orders is reported beside it, using the reference arm R3 for the order an approach would place on the true state.
 
 Three further scores make results comparable with Drossman et al. (2026):
 
-$$S_\omega = \begin{cases} Z_x(q^*(x)) / Z_x(\hat q_\omega) & \hat q_\omega \in \mathcal{Q} \\ 0 & \text{otherwise} \end{cases}, \qquad \text{success}_\omega = \mathbb{1}\left[\hat q_\omega \in \mathcal{Q},\; Z_x(\hat q_\omega) \le (1+\varepsilon)\, Z_x(q^*(x))\right] \qquad (16)$$
+```math
+S_\omega = \begin{cases} Z_x(q^{\ast}(x)) / Z_x(\hat q_\omega) & \hat q_\omega \in \mathcal{Q} \\ 0 & \text{otherwise} \end{cases}, \qquad \text{success}_\omega = \mathbb{1}\left[\hat q_\omega \in \mathcal{Q},\; Z_x(\hat q_\omega) \le (1+\varepsilon)\, Z_x(q^{\ast}(x))\right] \qquad (16)
+```
 
-$$\mathrm{FA}_\omega = \Pr\left[\text{claim adopted} \mid \tau = \text{false}\right], \qquad \mathrm{TU}_\omega = \Pr\left[\text{claim used} \mid \tau = \text{true}\right] \qquad (17)$$
+```math
+\mathrm{FA}_\omega = \Pr\left[\text{claim adopted} \mid \tau = \text{false}\right], \qquad \mathrm{TU}_\omega = \Pr\left[\text{claim used} \mid \tau = \text{true}\right] \qquad (17)
+```
 
-$$V_\omega = Z_x\big(\hat q_{\mathrm{A2}}\big) - Z_x\big(\hat q_\omega\big) \qquad (18)$$
+```math
+V_\omega = Z_x\big(\hat q_{\mathrm{A2}}\big) - Z_x\big(\hat q_\omega\big) \qquad (18)
+```
 
-$V_\omega$ is what reading the messages was worth to approach $\omega$, in dollars, against the solver on record fields alone (A2); it is negative when messages hurt. Traceability is the share of figures in an answer that match a record, a message or a solver output, checked by exact matching.
+$`V_\omega`$ is what reading the messages was worth to approach $`\omega`$, in dollars, against the solver on record fields alone (A2); it is negative when messages hurt. Traceability is the share of figures in an answer that match a record, a message or a solver output, checked by exact matching.
 
 ## 5. Four propositions
 
 Four short results predict where reading errors cost most and when acting on a message pays off. The experiment then tests them on the study's instances.
 
-**Proposition 1 (misreading stock costs asymmetrically).** One item, no binding minimum or budget, correct demand distribution. If an approach misreads the position as $\hat I_i = I_i + \Delta_i$ and the solver orders for that position, then
+**Proposition 1 (misreading stock costs asymmetrically).** One item, no binding minimum or budget, correct demand distribution. If an approach misreads the position as $`\hat I_i = I_i + \Delta_i`$ and the solver orders for that position, then
 
-$$\mathcal{I}_i \;\le\; \pi_i\,\Delta_i^{+} + h_i\,\Delta_i^{-}.$$
+```math
+\mathcal{I}_i \;\le\; \pi_i\,\Delta_i^{+} + h_i\,\Delta_i^{-}.
+```
 
-The cost (1) is convex in the stock after the order, with slopes between $-\pi_i$ and $h_i$; the solver orders up to its target for the misread position, so the true stock ends $\Delta_i$ below the target. Overstating stock (missing a delay) costs up to $\pi_i$ per unit; understating it costs at most $h_i$. With $\pi_i = 5h_i$, a missed delay can cost five times as much per unit as a false alarm.
+The cost (1) is convex in the stock after the order, with slopes between $`-\pi_i`$ and $`h_i`$; the solver orders up to its target for the misread position, so the true stock ends $`\Delta_i`$ below the target. Overstating stock (missing a delay) costs up to $`\pi_i`$ per unit; understating it costs at most $`h_i`$. With $`\pi_i = 5h_i`$, a missed delay can cost five times as much per unit as a false alarm.
 
-**Proposition 2 (when ordering on an unverifiable message pays).** A message, if right, puts the state at $x_T$; if wrong, the records are right. Let $p$ be the share of such messages that are wrong, $G$ what ordering on the message saves when it is right and $L$ what it costs when it is wrong. Then
+**Proposition 2 (when ordering on an unverifiable message pays).** A message, if right, puts the state at $`x_T`$; if wrong, the records are right. Let $`p`$ be the share of such messages that are wrong, $`G`$ what ordering on the message saves when it is right and $`L`$ what it costs when it is wrong. Then
 
-$$\text{order on the message} \iff p\,L < (1-p)\,G \iff p < p^{*} = \frac{G}{G+L}.$$
+```math
+\text{order on the message} \iff p\,L < (1-p)\,G \iff p < p^{\ast} = \frac{G}{G+L}.
+```
 
-**Proposition 3 (minimum orders amplify small misreads).** With a minimum order and no binding budget, the order is $0$ or at least $q_i^{\min}$, and the solver orders when the position is below a threshold $I_i^{t}$. A misread that crosses $I_i^{t}$ swaps the two choices, and
+**Proposition 3 (minimum orders amplify small misreads).** With a minimum order and no binding budget, the order is $`0`$ or at least $`q_i^{\min}`$, and the solver orders when the position is below a threshold $`I_i^{t}`$. A misread that crosses $`I_i^{t}`$ swaps the two choices, and
 
-$$\mathcal{I}_i \;\le\; (\pi_i + h_i)\,\lvert \Delta_i \rvert .$$
+```math
+\mathcal{I}_i \;\le\; (\pi_i + h_i)\,\lvert \Delta_i \rvert .
+```
 
-Without a minimum, a small misread near the target costs almost nothing. With one, a small misread can flip the order between nothing and a whole lot, and understating stock can cost up to $\pi_i + h_i$ per unit, six times $h_i$ at $\pi_i = 5h_i$. The asymmetry of P1 fades: where minimum orders bind, a delay notice needs checking too.
+Without a minimum, a small misread near the target costs almost nothing. With one, a small misread can flip the order between nothing and a whole lot, and understating stock can cost up to $`\pi_i + h_i`$ per unit, six times $`h_i`$ at $`\pi_i = 5h_i`$. The asymmetry of P1 fades: where minimum orders bind, a delay notice needs checking too.
 
 ![Figure 3: cost of a misread position](assets/research-fig3-misread.svg)
 
-*Figure 3 illustrates P1 and P3 on one item with normal demand (mean 100, sd 25 over the protection interval, $\pi = 5h$). The true position sits 8 units below the order threshold. Without a minimum, an 8-unit overstatement costs about $2h$; with a minimum of 60 units it flips the order from a full lot to nothing and costs about $27h$.*
+*Figure 3 illustrates P1 and P3 on one item with normal demand (mean 100, sd 25 over the protection interval, $`\pi = 5h`$). The true position sits 8 units below the order threshold. Without a minimum, an 8-unit overstatement costs about $`2h`$; with a minimum of 60 units it flips the order from a full lot to nothing and costs about $`27h`$.*
 
-**Proposition 4 (where the break-even share lies).** One item, no binding minimum or budget, both states calling for a positive order. Let $F, f$ be the distribution and density of demand over the protection interval, $\kappa = \pi_i/(\pi_i + h_i)$ the critical ratio and $y^* = F^{-1}(\kappa)$ the order-up-to level. A delay notice says the true position is $\delta > 0$ below the records; an early-arrival notice says it is $\delta$ above. With $\Gamma(y)$ the expected cost of ending at stock $y$,
+**Proposition 4 (where the break-even share lies).** One item, no binding minimum or budget, both states calling for a positive order. Let $`F, f`$ be the distribution and density of demand over the protection interval, $`\kappa = \pi_i/(\pi_i + h_i)`$ the critical ratio and $`y^{\ast} = F^{-1}(\kappa)`$ the order-up-to level. A delay notice says the true position is $`\delta > 0`$ below the records; an early-arrival notice says it is $`\delta`$ above. With $`\Gamma(y)`$ the expected cost of ending at stock $`y`$,
 
-$$p^{*}_{\text{delay}} = \frac{\Gamma(y^*-\delta) - \Gamma(y^*)}{\Gamma(y^*-\delta) + \Gamma(y^*+\delta) - 2\Gamma(y^*)}, \qquad p^{*}_{\text{early}} = 1 - p^{*}_{\text{delay}} .$$
+```math
+p^{\ast}_{\text{delay}} = \frac{\Gamma(y^{\ast}-\delta) - \Gamma(y^{\ast})}{\Gamma(y^{\ast}-\delta) + \Gamma(y^{\ast}+\delta) - 2\Gamma(y^{\ast})}, \qquad p^{\ast}_{\text{early}} = 1 - p^{\ast}_{\text{delay}} .
+```
 
-Near $y^*$ both gains grow like $\tfrac12 (h+\pi) f(y^*) \delta^2$, so $p^* \to 1/2$; far from it the gain grows like $\pi\delta$ and the loss like $h\delta$, so $p^*_{\text{delay}} \to \kappa$. And $p^*_{\text{delay}} \ge 1/2$ exactly when
+Near $`y^{\ast}`$ both gains grow like $`\tfrac12 (h+\pi) f(y^{\ast}) \delta^2`$, so $`p^{\ast} \to 1/2`$; far from it the gain grows like $`\pi\delta`$ and the loss like $`h\delta`$, so $`p^{\ast}_{\text{delay}} \to \kappa`$. And $`p^{\ast}_{\text{delay}} \ge 1/2`$ exactly when
 
-$$\int_0^{\delta} \left[\, 2\kappa - F(y^*-t) - F(y^*+t) \,\right] dt \;\ge\; 0,$$
+```math
+\int_0^{\delta} \left[\, 2\kappa - F(y^{\ast}-t) - F(y^{\ast}+t) \,\right] dt \;\ge\; 0,
+```
 
-which holds for every $\delta$ when demand is symmetric and unimodal and $\kappa \ge 1/2$. In words: when these conditions hold, act on a delay notice unless more than a share between $1/2$ and $\kappa$ of such notices are wrong, and act on an early-arrival notice only if fewer than a share between $1-\kappa$ and $1/2$ are wrong. With $\pi = 5h$, $\kappa = 0.83$. The band is not universal: with a heavy right tail, a delay notice can be worth acting on even when more than $\kappa$ of such notices are wrong.
+which holds for every $`\delta`$ when demand is symmetric and unimodal and $`\kappa \ge 1/2`$. In words: when these conditions hold, act on a delay notice unless more than a share between $`1/2`$ and $`\kappa`$ of such notices are wrong, and act on an early-arrival notice only if fewer than a share between $`1-\kappa`$ and $`1/2`$ are wrong. With $`\pi = 5h`$, $`\kappa = 0.83`$. The band is not universal: with a heavy right tail, a delay notice can be worth acting on even when more than $`\kappa`$ of such notices are wrong.
 
-**Corollary 4.1 (normal demand).** For demand $N(\mu, \sigma^2)$, a shift of $u$ standard deviations, $z = \Phi^{-1}(\kappa)$ and the standard normal loss function $L_o$,
+**Corollary 4.1 (normal demand).** For demand $`N(\mu, \sigma^2)`$, a shift of $`u`$ standard deviations, $`z = \Phi^{-1}(\kappa)`$ and the standard normal loss function $`L_o`$,
 
-$$p^{*}_{\text{delay}}(u) = \frac{-(1-\kappa)\,u + L_o(z-u) - L_o(z)}{L_o(z-u) + L_o(z+u) - 2L_o(z)},$$
+```math
+p^{\ast}_{\text{delay}}(u) = \frac{-(1-\kappa)\,u + L_o(z-u) - L_o(z)}{L_o(z-u) + L_o(z+u) - 2L_o(z)},
+```
 
-which depends only on $\kappa$ and $u$ and, for $\kappa > 1/2$, rises strictly from $1/2$ to $\kappa$ (for example $0.629$ at $\kappa = 0.8$, $u = 1$).
+which depends only on $`\kappa`$ and $`u`$ and, for $`\kappa > 1/2`$, rises strictly from $`1/2`$ to $`\kappa`$ (for example $`0.629`$ at $`\kappa = 0.8`$, $`u = 1`$).
 
 ![Figure 4: break-even share of wrong notices](assets/research-fig4-breakeven.svg)
 
-**With a binding budget.** Let $\lambda$ be the budget's shadow price. Units moved to item $j$ on a message cost the other items about $\lambda c_j$ per unit whether the message is right or wrong, so the critical ratio becomes $\kappa_\lambda = \kappa - \lambda c_j/(\pi + h)$, and for symmetric unimodal demand the direction reverses, to first order, when $\lambda c_j > (\pi - h)/2$. Under a tight budget a delay notice is worth less, because the money for extra units comes out of other items, and an early-arrival notice is worth more. This version is a local approximation and is reported as a diagnostic, not a guarantee.
+**With a binding budget.** Let $`\lambda`$ be the budget's shadow price. Units moved to item $`j`$ on a message cost the other items about $`\lambda c_j`$ per unit whether the message is right or wrong, so the critical ratio becomes $`\kappa_\lambda = \kappa - \lambda c_j/(\pi + h)`$, and for symmetric unimodal demand the direction reverses, to first order, when $`\lambda c_j > (\pi - h)/2`$. Under a tight budget a delay notice is worth less, because the money for extra units comes out of other items, and an early-arrival notice is worth more. This version is a local approximation and is reported as a diagnostic, not a guarantee.
 
-Two planned tests follow from the propositions, and both test the cost structure on the study's instances rather than agent behaviour: **H4**, a minimum order raises the information cost per misread unit, more for understated than for overstated stock (re-solving each run's stated and true states without the minimum, no model calls); and **H5**, under a loose budget, $p^*$ is higher for delay notices than for early-arrival notices (computed from the solver alone).
+Two planned tests follow from the propositions, and both test the cost structure on the study's instances rather than agent behaviour: **H4**, a minimum order raises the information cost per misread unit, more for understated than for overstated stock (re-solving each run's stated and true states without the minimum, no model calls); and **H5**, under a loose budget, $`p^{\ast}`$ is higher for delay notices than for early-arrival notices (computed from the solver alone).
 
 ## 6. Study design
 
@@ -204,22 +244,24 @@ Each scenario is a set of items at one decision date, with 90 days of demand his
 
 | Message condition | Test scenarios | What it measures |
 | --- | --- | --- |
-| None (planning from the records only) | 40 | Computation, $C$ in (15) |
-| True, e.g. "your open order will arrive two weeks late" | 60 | Using true information: TU (17), $V$ (18) |
+| None (planning from the records only) | 40 | Computation, $`C`$ in (15) |
+| True, e.g. "your open order will arrive two weeks late" | 60 | Using true information: TU (17), $`V`$ (18) |
 | False, the twin of a true message | 60 | Ordering on wrong messages: FA (17) |
 | Vague, e.g. "the order may be delayed" | 40 | Behaviour when the message is unclear |
 
-The 60 false-message scenarios are **twins** of the 60 true ones: each pair shares the message, stock, open orders, sales history and budget and differs only in the truth (and, when the claim is checkable, in the supplier's receipt history, since that is the evidence a check can find). Within true and false, half of the messages are checkable and half are not, and independently half lower the stock position (a delay) and half raise it (an early arrival). All six approaches run on every test scenario, so they are compared in pairs. A seventh arm (A7) adds one line giving the supplier's track record of wrong notices, at one level below and one above each pair's $p^*$, to see whether adoption responds to the record.
+The 60 false-message scenarios are **twins** of the 60 true ones: each pair shares the message, stock, open orders, sales history and budget and differs only in the truth (and, when the claim is checkable, in the supplier's receipt history, since that is the evidence a check can find). Within true and false, half of the messages are checkable and half are not, and independently half lower the stock position (a delay) and half raise it (an early arrival). All six approaches run on every test scenario, so they are compared in pairs. A seventh arm (A7) adds one line giving the supplier's track record of wrong notices, at one level below and one above each pair's $`p^{\ast}`$, to see whether adoption responds to the record.
 
 **Sample size.** What matters is the number of distinct scenarios, not total conversations. The key paired comparison (for example FA of A5 against A6 on the same false messages) is a McNemar test; at a 5% level and 80% power it needs
 
-$$n = \frac{\left(z_{\alpha/2}\sqrt{p_d} + z_{\beta}\sqrt{p_d - \delta^2}\right)^2}{\delta^2}$$
+```math
+n = \frac{\left(z_{\alpha/2}\sqrt{p_d} + z_{\beta}\sqrt{p_d - \delta^2}\right)^2}{\delta^2}
+```
 
-pairs, where $\delta$ is the difference to detect and $p_d$ the share of discordant pairs: about 56 pairs for $\delta = 20$ points at $p_d = 30\%$, and about 154 for $\delta = 10$ points at $p_d = 20\%$. The pilot estimates $\delta$ and $p_d$; if more than 60 twin pairs are needed, the twins grow (for example 150 pairs gives 380 test scenarios).
+pairs, where $`\delta`$ is the difference to detect and $`p_d`$ the share of discordant pairs: about 56 pairs for $`\delta = 20`$ points at $`p_d = 30\%`$, and about 154 for $`\delta = 10`$ points at $`p_d = 20\%`$. The pilot estimates $`\delta`$ and $`p_d`$; if more than 60 twin pairs are needed, the twins grow (for example 150 pairs gives 380 test scenarios).
 
 **Models (planned).** Two hosted models, Claude Sonnet 5.5 and GPT-5.5 through MIT's gateway, and one open-weight model (for example from the Qwen3 family) on MIT GPUs, with versions, weights and sampling settings pinned. The model comparison is a robustness check; the main comparison is across approaches. Every run logs its inputs, outputs, tool calls, stated state, tokens, cost and model version.
 
-**Pre-specified estimates and tests.** E1: the size of $C$ for the model arms that compute their own order. E2–E3: $\mathcal{I}$ against $C$ on message scenarios, and $V$ for A5 and A6 on true and false messages, traced over the share $p$ of false messages. H2 (a design check): validation lowers FA and, when true messages are not checkable, also lowers TU. E4: without a checking tool, whether the model adopts the true twin more often than the false one. E5: the model's adoption of delay versus early-arrival notices against the break-even rule of P2/P4. E6: whether adoption changes with the stated track record (A7). H4 and H5 as in Section 5, Holm-corrected. Every estimate is reported whatever its sign.
+**Pre-specified estimates and tests.** E1: the size of $`C`$ for the model arms that compute their own order. E2–E3: $`\mathcal{I}`$ against $`C`$ on message scenarios, and $`V`$ for A5 and A6 on true and false messages, traced over the share $`p`$ of false messages. H2 (a design check): validation lowers FA and, when true messages are not checkable, also lowers TU. E4: without a checking tool, whether the model adopts the true twin more often than the false one. E5: the model's adoption of delay versus early-arrival notices against the break-even rule of P2/P4. E6: whether adoption changes with the stated track record (A7). H4 and H5 as in Section 5, Holm-corrected. Every estimate is reported whatever its sign.
 
 ### 6.4 Experiment 2 (later): conversations with simulated buyers
 
@@ -228,7 +270,7 @@ Experiment 2 carries the design of Drossman, Jacquillat and Martin (2026) into s
 ### 6.5 Validity
 
 - **Objective scoring.** Every score in (15)–(18) is computed by the simulator against the known true state; no person or language model grades an answer. Traceability is checked by exact matching. Synthetic scenarios are generated fresh, so they cannot appear in a model's training data.
-- **The benchmark's own error.** $q^*(x)$ is optimal for 200 sampled demand paths, not the distribution itself. For one scenario per cell, $q^*$ is held fixed and compared with the optimum of 20 independent batches; the mean gap plus $t_{0.95,19}$ standard errors bounds its optimality gap (Mak, Morton and Wood 1999).
+- **The benchmark's own error.** $`q^{\ast}(x)`$ is optimal for 200 sampled demand paths, not the distribution itself. For one scenario per cell, $`q^{\ast}`$ is held fixed and compared with the optimum of 20 independent batches; the mean gap plus $`t_{0.95,19}`$ standard errors bounds its optimality gap (Mak, Morton and Wood 1999).
 - **Mechanism, not only scores.** Each failed run gets one of six error types (misread a record, accepted a false claim, ignored a true message, broke a constraint, computed badly, stated an unsupported figure), coded by script and double-coded by hand on a 10% sample (Cohen's κ reported). Severe losses are reported as the 90th and 95th percentiles of regret.
 - **Reproducibility.** Code, scenario generator, seeds, prompts and the full log of every model call are to be released with a DOI; every score can be recomputed from the logs without calling a model.
 
@@ -237,7 +279,7 @@ Experiment 2 carries the design of Drossman, Jacquillat and Martin (2026) into s
 Only the solver has been piloted, on public data; no comparison of the approaches has been run, and no model was involved in any number below.
 
 - **Solver checks (M5, six FOODS_3 items, store CA_1, run before the training and test windows were fixed; they verify the solver only).** HiGHS reports an optimal solution with a gap of 0, with and without the budget. Without a budget or minimums, the solver matches the newsvendor solution at shortage-to-holding ratios of 2, 5 and 10. At the budget, the held-out cost is within 0.6% of the in-sample cost. The same checks were run on a second M5 department with intermittent demand and on Online Retail II.
-- **P3 on a development scenario (M5, training window).** Worst cost per misread unit, in multiples of $h_i$, for misreads of 1 to 60 units, against the bound of 6:
+- **P3 on a development scenario (M5, training window).** Worst cost per misread unit, in multiples of $`h_i`$, for misreads of 1 to 60 units, against the bound of 6:
 
 | Item and minimum order | Overstated stock: no minimum → minimum | Understated stock: no minimum → minimum |
 | --- | --- | --- |
