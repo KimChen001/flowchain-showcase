@@ -1,59 +1,60 @@
 # FlowChain demonstration
 
-A five-minute walkthrough of the desktop workspace, conversation assistant, purchasing decisions, and beta mobile operations. The screenshots below come from the running application with fictional business records.
+A ten-minute walkthrough of the UCI workspace (a UK online gift retailer, public sales data, assumed purchasing side). Figures are as of the 18 November 2026 seed; the data moves with the calendar, so a later run shows slightly different numbers.
 
-## 1 Desktop workspace — 30 seconds
+## 1 Today — 2 minutes
 
-Open Today and show the work queue, overdue count, and links to recent documents. Explain how purchasing, receiving, inventory, sales, and bills share records.
+Open Today. The cards under *Waiting for your decision* are next steps the system has already drafted from rules: an invoice difference (INV-SUP-22-0049, 22178 invoiced at £0.65 against £0.63 ordered, +3.2%), a late order (PO-202610-0028 from Acme, 220 pcs of 85123A still to receive), a reorder, and an approved request ready to convert.
 
-[Desktop overview](assets/01-workspace-overview.jpg)
+Point out: nothing happens until someone clicks. *Copy and mark chased* copies a reminder and records the chase; the person sends it.
 
-## 2 AI conversation and draft — 90 seconds
+![Today](assets/01-today-decisions.jpg)
 
-Ask: **“Which purchase orders are overdue?”**
+## 2 Why not reorder the item that is short — 2 minutes
 
-The captured walkthrough returns eight overdue orders. Show the most overdue order, its supplier, promised date, and next-step suggestion. Open a cited record to inspect the evidence. The assistant also supports contextual follow-ups from previously cited records; this capability is not separately pictured here.
+Open item 85123A (White Hanging Heart T-Light Holder): 48 on hand against a safety stock of 111 and a reorder point of 522. Two late Acme orders still bring 550 pcs, so its position (598) is above the reorder point and the reorder list does not suggest another order. The right action is to chase, not to order twice.
 
-Choose **Review draft** for LOCAL-DEMO-PO-020. Show the supplier contact, order number, 7,000 pcs remaining, promised date, and editable message. Explain that preparing a draft does not send an email or change the PO.
+## 3 Reorder — 2 minutes
 
-[Assistant answer](assets/02-ai-assistant-overdue-orders.jpg) · [Follow-up draft](assets/03-ai-supplier-follow-up-draft.jpg)
+Inventory → Reorder list. Find 22423 Regency Cakestand 3 Tier: 192 on hand, reorder point 247, nothing on order. *Create purchase request* opens a prefilled request for 106 pcs, ordering up to the reorder point plus seven days of demand (an app default marked *assumed* on the row). A person checks and submits it.
 
-These captures use the default rule-based assistant, without a language model. The optional model-first agent and semantic knowledge search are described in the [README](README.md#agent-design-and-evaluation), not demonstrated by these screenshots.
+![Reorder list](assets/02-reorder-list.jpg)
 
-## 3 Purchasing, stock, and supplier performance — 90 seconds
+## 4 Approval and matching — 2 minutes
 
-Show the RFQ line comparison: the suppliers offer different unit prices and delivery dates. Explain the commercial trade-off and historical PO price context. Formal award requires a separate reviewed decision.
+Purchase orders → PO-202611-0021 is waiting for approval; its submitter cannot approve it. Then open Three-way match: 331 invoices matched and 1 held. Open INV-SUP-22-0049 to show the line comparison of ordered, received and invoiced quantities and prices. The difference is above the tolerance (the larger of 2% and £1 a line), so it is held and is not payable until a second person reviews it.
 
-Open inventory balances and explain on-hand, reserved, available, safety stock, and reorder points. The current walkthrough has no qualifying reorder rows, so it does not demonstrate a replenishment recommendation. For a live reorder demonstration, first use a fictional scenario with a shortage or sufficient shipment history, then show incoming-order coverage and the prefilled request.
+![Three-way match](assets/03-three-way-match.jpg)
 
-Show the supplier scorecard. Explain the difference between performance against the original date and against the revised date, then inspect the underlying deliveries.
+## 5 The assistant — 2 minutes
 
-[Quotation comparison](assets/06-rfq-quotation-comparison.jpg) · [Inventory balances](assets/04-inventory-balances.jpg) · [Supplier performance](assets/05-supplier-performance.jpg)
+Open the assistant from any page and ask, in English or Chinese:
 
-## 4 Mobile operations — 60 seconds
+- *What should I handle first today?*
+- *Does 85123A need reordering?*
+- *Draft a reminder to Acme listing its late orders.*
 
-State the status first: **implemented beta responsive web module, explicitly enabled for this demo and outside the current core trial scope**.
+Show the cited records under each answer, the form or draft it prepares, and that the person confirms every step. Each answer can be rated 👍 or 👎; a thumbs-down becomes a draft test case.
 
-Show the task inbox and open a pending purchase order. Review its supplier, amount, lines, and available decision controls. Stop before approving, rejecting, or returning it.
+![Assistant: what to handle first](assets/04-assistant-today.jpg)
 
-Open Mobile receiving, search LOCAL-DEMO-PO-020, and show the warehouse, location, outstanding quantity, accepted quantity, and Prepare draft control. Stop before creating or posting a receipt.
+![Assistant: prefilled purchase request](assets/05-assistant-reorder-form.jpg)
 
-[Task inbox](assets/07-mobile-task-inbox-beta.jpg) · [PO review](assets/08-mobile-po-review-beta.jpg) · [Receiving preparation](assets/09-mobile-receiving-beta.jpg)
+## 6 What is assumed — 30 seconds
 
-The images demonstrate mobile web layouts. They do not imply a native app, production rollout, offline readiness, or completed approval/receiving transactions.
+Open *What is assumed* in the blue bar at the top. It lists what comes from the public data and what is generated by stated rules (suppliers, costs, lead times, invoice differences), computed from past data only.
+
+![What is assumed](assets/06-what-is-assumed.jpg)
 
 ## Screenshot index
 
-| Screenshot | What is actually shown |
+| Screenshot | What it shows |
 | --- | --- |
-| [01 Desktop workspace](assets/01-workspace-overview.jpg) | Work queue, overdue orders, and document activity |
-| [02 AI assistant](assets/02-ai-assistant-overdue-orders.jpg) | Data-backed overdue-order answer and next-step suggestions |
-| [03 Supplier follow-up](assets/03-ai-supplier-follow-up-draft.jpg) | Editable message with outstanding quantity and promised date |
-| [04 Inventory](assets/04-inventory-balances.jpg) | Posted stock, availability, warehouses, and thresholds |
-| [05 Supplier performance](assets/05-supplier-performance.jpg) | Original/revised-date performance, in-full, OTIF, and delays |
-| [06 RFQ comparison](assets/06-rfq-quotation-comparison.jpg) | Recorded quotes, delivery dates, historical prices, and commercial terms |
-| [07 Mobile task inbox](assets/07-mobile-task-inbox-beta.jpg) | Pending purchasing tasks in the beta web module |
-| [08 Mobile PO review](assets/08-mobile-po-review-beta.jpg) | Order information and decision controls, without executing a decision |
-| [09 Mobile receiving](assets/09-mobile-receiving-beta.jpg) | Quantity review and receipt-draft preparation controls |
+| [01 Today](assets/01-today-decisions.jpg) | Drafted decisions waiting for a person, with the work queue |
+| [02 Reorder list](assets/02-reorder-list.jpg) | Order-by dates, the order-up-to quantity, the optional TimesFM line |
+| [03 Three-way match](assets/03-three-way-match.jpg) | Matched invoices and the one held by a price difference |
+| [04 Assistant, today](assets/04-assistant-today.jpg) | An answer on what to handle first, with the records it used |
+| [05 Assistant, reorder](assets/05-assistant-reorder-form.jpg) | An answer that opens a prefilled purchase request for a person to submit |
+| [06 What is assumed](assets/06-what-is-assumed.jpg) | The labelled assumptions behind the public-data workspace |
 
-All business names, contacts, and transactions in the images are fictional walkthrough data. Capture date: October 8, 2026. Source snapshot: `33542e12`.
+All records come from the public-data workspaces seeded on 18 November 2026 from FlowChain `main` at `df9f3260`. Supplier names other than the code-based groups (Acme Home Goods, Globex Party Supplies) are fictional.

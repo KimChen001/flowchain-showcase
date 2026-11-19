@@ -1,174 +1,126 @@
 # FlowChain
 
-**A research testbed for AI-assisted procurement decisions: a procurement, inventory, and sales workspace for SMEs, built by Zhixin Chen.**
+**An AI procurement research prototype: a purchase-to-pay and inventory workspace with an LLM agent that reads the records, cites them, and prepares the next step for a person to confirm. Built by Zhixin Chen.**
 
-FlowChain connects purchasing, stock availability, supplier commitments, and the records behind them. Its conversational assistant helps users understand what needs attention, inspect supporting evidence, and prepare the next piece of work for human review.
+FlowChain runs on two public datasets with labelled assumptions: UCI Online Retail II (a UK online gift retailer, GBP) and M5 (Walmart store CA_1, USD). There is no customer data and no production deployment. The question it is built to study is the one every agent deployment has to answer: which steps should be fixed rules, which can be left to the model, and where a person has to decide.
 
-![FlowChain desktop workspace](assets/01-workspace-overview.jpg)
+![Today: work the system has already prepared for a decision](assets/01-today-decisions.jpg)
 
-*Actual application screenshots captured in an isolated workspace with fictional suppliers and transactions. This repository presents the product and recorded evaluation evidence.*
+*Today in the UCI workspace. Each card is a drafted next step (chase a late order, review an invoice difference, reorder, convert an approved request). Nothing is created or sent until someone clicks.*
 
-[AI conversation assistant](#ai-conversation-assistant) · [Agent design and evaluation](#agent-design-and-evaluation) · [Mobile operations](#mobile-operations--beta) · [Purchasing and inventory](#purchasing-and-inventory-in-action) · [Demo walkthrough](DEMO.md)
+[What the workspace does](#what-the-workspace-does) · [How the agent works](#how-the-agent-works) · [Fitting an agent into a workflow](#fitting-an-agent-into-a-workflow) · [Evaluation](#evaluation) · [Limits](#limits) · [Demo walkthrough](DEMO.md) · [Research notes](RESEARCH.md)
 
-## AI conversation assistant
+## What the workspace does
 
-The assistant is a conversation interface inside the business workspace. Users can ask a question, inspect the records behind the answer, continue with a follow-up, and review a proposed next action.
+A multi-tenant web app (TypeScript, React, Node.js, PostgreSQL) covering the purchase-to-pay flow and the stock it depends on.
 
-| Capability | Business example |
+| Area | What a user can do |
 | --- | --- |
-| Natural-language business questions | “Which purchase orders are overdue?” or “What should I handle first today?” |
-| Record lookup and follow-up context | Ask about a PO, SKU, or supplier, then continue from the records cited in the previous answer. |
-| Purchasing spend analysis | Review committed purchasing spend by supplier, item, or month using the purchasing dashboard's calculations. |
-| Procurement and inventory decisions | Check available stock and incoming orders before preparing a purchase-request draft. Existing orders that cover a shortage are surfaced first. |
-| Supplier follow-up drafts | Prepare a message with outstanding quantities and promised dates for a person to review. |
-| Product and company knowledge | Search uploaded guides and policies with passage citations; optional semantic retrieval extends keyword search. |
-| English and Chinese conversations | Answer in the language used for the question while preserving business values and record IDs. |
+| Purchasing | Purchase requests with approval, RFQs and supplier quote comparison, purchase orders (submit, approve, issue), a preview of the orders an approved request will create |
+| Receiving | Receipt drafts, a preview of the stock impact, posting and reversal |
+| Matching and payables | Three-way match of order, receipt and supplier invoice per line; differences inside the tolerance match automatically, the rest are held until a second person reviews them; payables aging with held invoices shown apart |
+| Inventory | Balances, movements, warnings, and a reorder list ranked by order-by date, with batch requests and an optional TimesFM forecast line |
+| Sales | Orders, reservations, one-click full shipment, customer invoices, receivables |
+| Suppliers | Delivery performance (on time, in full, OTIF against the original promised date), tiers set by people with reasons, risks |
+| Reports | Dashboards whose figures open the exact rows they count, exports, printable documents with page numbers |
 
-### From a question to supporting records
+Approvals follow segregation of duties: the person who submitted a request or order cannot approve it (a workspace with a single approver is the one logged exception). The match tolerance is the larger of 2% and one currency unit per line, with zero tolerance on quantity; a quantity difference can be rejected, matched again after a late receipt, or accepted at the received quantity, but never approved for payment as invoiced.
 
-![AI assistant identifying overdue purchase orders](assets/02-ai-assistant-overdue-orders.jpg)
+![Three-way match: one invoice held, the rest matched](assets/03-three-way-match.jpg)
 
-*Actual demo query: “Which purchase orders are overdue?” The assistant identifies eight overdue orders in the fictional workspace and prioritizes the oldest. It names the records checked, the supplier, the promised date, and a suggested follow-up.*
+*332 supplier invoices checked against their orders and receipts: 331 matched, 1 held by a price difference above the tolerance.*
 
-### From an answer to a reviewable draft
+## How the agent works
 
-![AI supplier follow-up draft](assets/03-ai-supplier-follow-up-draft.jpg)
-
-*The draft for LOCAL-DEMO-PO-020 includes the outstanding 7,000 pcs and the promised date. The user can inspect and edit the message before taking the next step.*
-
-By default the assistant answers from rule-based, read-only business services and calls no language model. That is the default on `main` today, and it is the mode these screenshots show. An optional model-first agent can answer typed questions instead; it is off unless the server and the workspace switch it on (see [Agent design and evaluation](#agent-design-and-evaluation)). The agent and semantic retrieval are not shown in these images.
+The assistant opens on every page and answers questions about the whole workspace in English or Chinese.
 
 ```mermaid
 flowchart LR
-    Q[Business question] --> R[Permitted records and business calculations]
-    R --> A[Answer with evidence]
-    A --> F[Contextual follow-up]
-    F --> R
-    A --> D[Prefilled form or message draft]
-    D --> H[Human review and next action]
+    Q[Question] --> L[Tool loop: up to 6 rounds, 12 tool calls]
+    L --> T[Typed read tools, filtered by the user's permissions]
+    T --> L
+    L --> G[Grounding check against the tool results]
+    G --> A[Answer with cited records]
+    A --> C[Card, prefilled form or draft]
+    C --> P[A person reviews and confirms]
 ```
 
-The assistant does not autonomously save, submit, approve, pay, or send messages. Formal business actions remain in the relevant document pages.
+- **Read tools with schemas.** The model reads through typed tools: purchasing, inventory, sales, supplier and finance reads, a `calculate` tool for arithmetic and dates, and `search_documents` over a policy and knowledge library (LangChain text splitting, pgvector retrieval, cited passages). Every tool declares a JSON Schema; arguments outside it are rejected. A tool is offered only if the asking user may read its source, so the agent cannot see more than the user.
+- **Grounding check.** Before an answer is shown, the server checks every figure, date, record number and supplier, customer or item name in it against that answer's tool results, the `calculate` results, or the question. Anything it cannot trace is flagged. Sentences that claim the assistant did something it cannot do are removed.
+- **No writes by the model.** The agent has no write tool. It can open a purchase request form prefilled with quantities, draft a reminder to a supplier about an overdue order, or offer the app's own buttons. A person checks and confirms each one; a supplier email needs the text and then the address confirmed, and a retried send goes out once.
+- **An optimiser where a rule is not enough.** For an order plan under a budget, the agent calls an exact MILP solver (sample-average approximation, solved with HiGHS). Its quantities go into the purchase request form, where a person reviews them.
+- **Rules where the answer must not vary.** The drafted decisions on Today (chase, reorder, review a difference, convert a request) come from rules and a small state machine, not from the model. A decision someone has made is remembered, and the card comes back only if the situation changes.
+- **Budgets.** Each answer is capped in rounds, tool calls, tokens and cost, and long conversations keep only as many earlier turns as the budget allows.
 
-## Agent design and evaluation
+![Assistant: what to handle first today](assets/04-assistant-today.jpg)
 
-The model-first agent answers procurement questions with a language model while tying every stated figure to the records. **It is not the default on `main`.** It runs only when the server sets `FLOWCHAIN_AI_ASSISTANT_MODE=model_first` and configures a model provider. In production, a workspace administrator must also switch AI on, under a monthly spend cap. Otherwise the rule-based assistant shown above answers. The results below come from local runs on the fictional walkthrough data, not from trial or customer use.
+*"What should I handle first today?" The answer starts from the oldest late order, notes that 550 pcs of 85123A sit on two late Acme orders, and lists the held invoice and the reorders due today. The records it used are listed under the answer.*
 
-**Design**
+![Assistant: a prefilled purchase request](assets/05-assistant-reorder-form.jpg)
 
-- **Tool-calling loop.** A typed question goes to a loop of at most 4 rounds and 8 tool calls per answer, within 20 seconds and 80,000 tokens. The model reads through 22 typed read tools: 20 over the workspace's purchasing, inventory, sales, supplier, and finance records, plus `calculate` for arithmetic and date differences and `search_documents` for the knowledge library. A tool is offered only when the asking user may read its source (the contract list also needs the contracts module switched on), and each call is checked again against that user's permissions.
-- **Grounding check.** Before an answer is shown, the server checks that every figure, date, record number, and known supplier, customer, or item name in it appears in that answer's tool results (including `calculate`) or in the question. Record numbers and names already used in the conversation also count; figures and dates must be read again. Each cited record must have been returned by a tool. If the check fails, the model gets one retry with the failing items listed. If it fails again, the rule-based assistant answers instead, with a notice.
-- **Proposals only.** The agent has no write tool. Its one proposal opens a filled-in purchase request card in the panel, only for an item the user named or picked. Nothing is saved until a person reviews and submits it, and the request becomes a purchase order only after approval.
-- **Guards first.** Instructions to act, prompt-injection phrasing, and the panel's preset prompts are answered by deterministic rules without calling the model.
+*"Does 22423 need reordering? If so, open a request." The answer explains the position against the reorder point and opens a purchase request prefilled with 106 pcs, the supplier and the need-by date. Nothing is saved until a person submits it.*
 
-**Recorded results**
+![Reorder list with the suggested quantity and a TimesFM forecast line](assets/02-reorder-list.jpg)
 
-All runs used Claude Haiku 5.5 with reasoning off.
+*The reorder list counts every open purchase order line as incoming, flags late ones, and orders up to a level. The TimesFM line is an optional forecast shown next to the rule-based suggestion, not a replacement for it.*
+
+## Fitting an agent into a workflow
+
+In the terms agent platforms use:
+
+| Part | In FlowChain |
+| --- | --- |
+| Integration | CSV/XLSX import with a preview before commit; supplier email sent through a mail provider only after a person confirms it. No ERP connector; reading supplier replies is designed, not built. |
+| Tool | Typed read tools with JSON Schemas, offered per the user's permissions; display tools that render tables, charts, record cards and prefilled forms from tool results, never from model-typed values. |
+| Prompt | One system prompt with the tool definitions, cached between calls, inside a fixed per-answer budget of rounds, tool calls, tokens and cost. |
+| Workflow nodes | Fixed steps in code around a single model loop: drafted decisions with their own states (open, decided, resolved, expired), approvals with segregation of duties, match → review → payable. The model runs inside one node; the others do not call it. |
+| Graph | An evidence graph links related documents, for example request → RFQ → order → receipt → supplier invoice; the order evidence page in Sales draws one. A tool that lets the agent walk the purchasing chain in one call is in review. |
+
+How the parts above map to the decisions a deployment has to make:
+
+| Decision | How FlowChain handles it |
+| --- | --- |
+| Which steps are fixed | Quantities, matching, approval rights, due dates and drafted next steps are computed in code. The model explains, compares and prepares; it never decides a number on its own. |
+| Where a person decides | Every write is a click. Exceptions (an invoice difference, a late order) wait in a queue with the evidence attached, and the review is done by a second person where money is involved. |
+| What the agent may see | The same permissions as the user: role, warehouse scope and finance amounts. |
+| How the process is configured | Match tolerances, approval policies, document numbering, the workspace's locale, timezone and currency, reorder points and order-up-to levels per item. |
+| How data gets in | CSV/XLSX import with a preview before commit, and the two public datasets seeded through the app's own commands. Anything the data does not contain (suppliers, costs, lead times, invoice differences) is generated by stated rules from past data only and labelled on every page. |
+| How you know it works | A question set with answers worked out independently from the seed, run after every agent change; a 👍/👎 on each answer that turns a thumbs-down into a draft test case. |
+
+![What is assumed: the labelled assumptions behind the public data](assets/06-what-is-assumed.jpg)
+
+## Evaluation
+
+- **Question set (UCI workspace).** Questions a buyer asks on a first look: what to handle first, stock and position, scenarios ("if neither late order arrives…"), reorder, purchasing, suppliers, sales, receivables, purchasing records, plus conversation and boundary cases, in English and Chinese. Expected figures come from the seed's own plan, never from the agent's tools, so a tool that computes wrongly fails its case. The set has 118 cases on the current seed.
+- **M5 lane.** 13 questions on a 12-item M5 instance, including budgeted order decisions checked against the research solver's optimum.
+- **Knowledge retrieval.** A separate suite scores document and section retrieval and workspace isolation for the policy library.
+
+The agent was developed and tested live with Claude Sonnet 5.5 and Claude Haiku 5.5. The regression runs below use a lower-cost model, so the whole set can be run after every change.
+
+Recorded runs (project runs, one run each unless noted; they show how the agent was tuned, not general model accuracy):
 
 | Run | Result |
 | --- | --- |
-| 24 test questions, one run per design, graded against a written rubric by an AI reviewer (October 28, 2026) | The model-first agent fully answered 22 (20 in its first run, before one fix made on the same questions). The earlier design, rules with LLM planning and wording, fully answered 15. |
-| Six full evaluation-lane runs of the model-first agent before it was merged (October 29 to November 1, 2026, 267 cases, about 204 loop answers per run) | In each run, 2 to 6 loop answers still failed the grounding check after the retry and were replaced by the rule-based reply (4, 6, 5, 6, 6, and 2, in order). |
-| The same lane rerun on `main` (November 3, 2026, commit `46916226`, 282 cases) | 6 of 219 loop answers failed the grounding check after the retry. |
-| Safety checks in those seven runs | No case failed a safety check in the last five: the last four pre-merge runs and the rerun. The first two runs each had 3 such cases, fixed before the third. |
-| False-premise replays of one recorded five-turn demo chat (October 29, 2026) | In every run with a surviving record (5 of 6), the agent accepted the user's false claim about its earlier answer and admitted to it. A prompt instruction, tested on that same chat, stopped the false confessions (0 of 3 runs), but 1 of 3 runs still conceded part of the claim. In a rerun on `main` on November 3, 2026, all 3 runs conceded part of the claim or apologized. This remains an open problem. |
+| UCI question set, current seed, 19 November 2026 | 94 of 117 cases passed; one more case could not be set up. The run was a day after the seed day, so a few expected figures had moved. The misses are records an answer left out, figures the grounding check could not trace (flagged, not shown as fact), and quantities that differed from the expected ones. |
+| UCI question set, 12 November 2026 | 83 of the then 91 cases, about US$1.61 for the run |
+| UCI question set, 58 cases run twice, 11 November 2026 | 100 of 116 answers as first scored, 104 after four expected values were corrected; repeated runs differ by several cases, so changes are judged with repeats |
+| M5 lane, November 2026 | 13 of 13, about US$0.65 for the run |
 
-Safety checks cover refusals, permissions, workspace isolation, prompt injection, claimed actions, business writes, and network calls. These are recorded project runs on fixed question sets, mostly one run per commit, so run-to-run variance has not been measured. They do not establish general model accuracy or effects on purchasing outcomes.
+## Limits
 
-## Mobile operations — beta
+- A research prototype on public data with labelled assumptions. Not deployed, no customer data, no general ledger, tax or bank connection; payments are recorded, not made.
+- Supplier emails go out only after a person confirms them. Reading supplier replies (promised dates from an email) is designed but not built.
+- Supplier credit notes, returns in the UI, order changes after issue and history import are not available yet.
+- The question set measures this workspace; it does not establish accuracy on other data or effects on purchasing outcomes.
 
-FlowChain also has **responsive web pages for mobile operations**: a task inbox, purchase-order review, and receiving preparation. They use the same business services and authorization checks as the desktop workspace.
+## My contribution
 
-<table>
-  <tr>
-    <th>Task inbox</th>
-    <th>Purchase-order review</th>
-    <th>Receiving preparation</th>
-  </tr>
-  <tr>
-    <td><img src="assets/07-mobile-task-inbox-beta.jpg" width="250" alt="Mobile task inbox with pending purchase orders"></td>
-    <td><img src="assets/08-mobile-po-review-beta.jpg" width="250" alt="Mobile purchase-order review and approval controls"></td>
-    <td><img src="assets/09-mobile-receiving-beta.jpg" width="250" alt="Mobile receiving quantities and draft preparation"></td>
-  </tr>
-</table>
+I designed and built FlowChain on my own from June 2026, drawing on procurement deployments I led as a consultant (Coupa, SAP Ariba, JAGGAER, SAP S/4HANA). The work covers the purchase-to-pay and inventory workflows, the agent and its tools, the grounding check, the solver integration, the public-data workspaces and their stated assumptions, and the evaluation sets.
 
-- **Task inbox:** see purchasing work awaiting a decision and open its document.
-- **PO review:** inspect the supplier, amount, and lines; the beta interface exposes return, reject, and approve actions.
-- **Receiving preparation:** search an issued PO, choose a warehouse and location, review outstanding quantities, and prepare a receipt draft.
+Stack: TypeScript, React, Node.js, PostgreSQL with Prisma and pgvector, LangChain text splitters, HiGHS (WebAssembly) for the MILP, Zod for the assistant's stream contract. The demo uses DeepSeek V4.1 Flash; the agent loop is provider-neutral.
 
-**Status:** this module is implemented as a beta capability that requires explicit enablement. It is disabled by default and outside the current core trial scope. It was enabled in the isolated walkthrough used for these screenshots. The images demonstrate the web interfaces; no approval or receipt was posted during capture. This is a responsive web module, rather than a native iOS or Android application. These images do not establish native-device or offline readiness.
-
-## Purchasing and inventory in action
-
-### RFQs and supplier quotation comparison
-
-![RFQ line-by-line quotation comparison](assets/06-rfq-quotation-comparison.jpg)
-
-*Two recorded quotations are compared by quantity, unit price, total, and delivery date, with earlier PO prices available as context. Commercial terms support the buyer's review. A formal award is a separate, authorized human decision; the comparison does not automatically rank suppliers or create a PO.*
-
-### Inventory visibility and replenishment
-
-![Inventory balances and reorder points](assets/04-inventory-balances.jpg)
-
-*Posted inventory shows on-hand, reserved, and available quantities alongside safety stock and reorder points.*
-
-The reorder list combines stock and remaining quantities on committed POs. With sufficient history, it uses 90 days of posted shipments to estimate daily demand and calculate an order-by date. Incoming orders due after that date are excluded and the date is recalculated. Supplier minimum order quantities are considered when prefilling a request. Missing history and incompatible units are shown explicitly.
-
-The pictured walkthrough has no qualifying reorder rows: its stock positions, including incoming POs, are above the recorded reorder points, and shipment history is insufficient to date future requirements. The inventory screenshot demonstrates stock visibility; it does not show a generated replenishment recommendation.
-
-### Supplier delivery performance
-
-![Supplier delivery scorecard](assets/05-supplier-performance.jpg)
-
-*The scorecard distinguishes the original PO date from the current revised date. In this fictional example, on-time delivery is 66.7% against the original date and 100% against the current date. Keeping both visible prevents revised promises from concealing the original delay.*
-
-Supplier scorecards also show in-full, OTIF, early delivery, average delay, delivery counts, and data limitations, with supporting PO and receipt records available for inspection.
-
-## Product coverage
-
-| Area | Implemented workflows |
-| --- | --- |
-| Purchasing | Requests, RFQs, quotation revisions, reviewed awards, PO approval and issue, historical price context, and promised-date change reasons |
-| Receiving | Receipt drafts, impact previews, posting, and reversals |
-| Inventory | Balances, movements, availability, reservations, transfers, cycle counts, adjustments, lots, serials, and reorder decisions |
-| Suppliers | Commercial terms, item relationships, tiers and owners with reasons, purchase records, delivery performance, and open issues |
-| Sales | Customer orders, confirmation, holds, reservations, shipments, and invoicing |
-| Operational finance | Supplier bills, three-way matching, payables, receivables, credit notes, and records of externally made payments |
-| Data and reports | Master data, CSV/XLSX import, operational dashboards, report catalog, and exports |
-| AI and knowledge | Business conversation, evidence links, record follow-ups, spend analysis, drafts, and document retrieval with citations |
-| Mobile operations | Explicitly enabled beta web task inbox, PO review, and receiving preparation; outside current core trial scope |
-
-```mermaid
-flowchart LR
-    PR[Purchase request] --> RFQ[RFQ and quote review]
-    RFQ --> PO[Purchase order]
-    PO --> GRN[Goods receipt]
-    GRN --> INV[Inventory update]
-    PO --> MATCH[Three-way invoice match]
-    GRN --> MATCH
-    MATCH --> PAY[Payment record]
-```
-
-Not every purchase requires an RFQ. Payments made outside FlowChain are recorded in the system rather than executed by it. Operational finance does not replace a general ledger or statutory accounting system. Demand forecasting and MRP remain outside the current product release.
-
-## Recorded evaluation evidence
-
-The assistant evaluation set contains **255 questions in English and Chinese**, covering business routing, numeric agreement, record lookup, follow-up context, permissions, tenant isolation, and draft preparation.
-
-The recorded baseline dated **October 7, 2026** requires **225 cases to pass**. Project documentation reports that all 225 pass, with no permission leaks, cross-tenant leaks, or business writes in that evaluation. The remaining 30 cases are scored separately and are not part of the required gate; they include model-dependent planning, paraphrases, and semantic retrieval. A separate set of **18 knowledge questions** checks document and section retrieval.
-
-This suite runs without a language model. The set has grown since October 7: on `main` at `184da8e3` it has 282 cases (205 English, 77 Chinese), 252 of them gated. An offline run on November 3, 2026 passed all 252 gated cases with no safety failures. The model-first agent's recorded runs are in [Agent design and evaluation](#agent-design-and-evaluation).
-
-These are recorded project results, not a fresh evaluation run for this showcase update. They apply to the defined suites and do not establish universal model accuracy or customer savings. The demo record counts and scorecard values in the screenshots are fictional scenario data, not adoption or performance metrics.
-
-## My contribution and implementation
-
-I developed FlowChain as an independent project and use it as a research testbed for AI-assisted procurement decisions, translating procurement and inventory requirements into connected workflows. My work includes replenishment rules, supplier performance, RFQ comparison, a conversational assistant grounded in business records, the model-first agent with its grounding check, a mobile web operations module, and evaluation cases that check behavior against known data.
-
-The application uses React, Node.js, PostgreSQL, and Prisma. Business services calculate quantities and amounts; the optional model-first agent reads them through typed read tools, and the server checks its answers against the tool results. The knowledge library supports document retrieval with citations. English is the default interface and Chinese is available; translation work is ongoing.
-
-See the [demo walkthrough and screenshot index](DEMO.md) for a guided presentation.
+See the [demo walkthrough](DEMO.md) for a guided tour, and [Optimization and language models in operational decisions](RESEARCH.md) for the research questions behind the design.
 
 ---
 
-Prepared from the FlowChain main-branch snapshot `33542e12` on October 8, 2026. The assistant mode and the agent design and evaluation were updated from `main` at `184da8e3` on November 2–3, 2026 (unchanged for the assistant at `54c345ed`); the screenshots are still from the October 8 snapshot. Screenshots use fictional records from an isolated local walkthrough. This showcase contains documentation and selected images; application source, credentials, and operational data are not included.
+Prepared from FlowChain `main` at `df9f3260` on 19 November 2026. Screenshots come from the local UCI workspace seeded on 18 November 2026 and captured on 19 November 2026. This repository holds documentation and selected images only; application source, credentials and operational data are not included.
